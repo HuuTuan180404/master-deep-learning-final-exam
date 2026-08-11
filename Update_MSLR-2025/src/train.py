@@ -10,10 +10,10 @@ from .mamba_transformer import SOTA_CSLR
 
 import os
 import sys
-if os.environ.get("CONDA_DEFAULT_ENV") == "ArbMamba":
-    from .mamba_model import ArabicMamba
-else:
-    print("Not importing mamba_ssm (not in ArbMamba environment).", file=sys.stderr)
+# if os.environ.get("CONDA_DEFAULT_ENV") == "ArbMamba":
+#     from .mamba_model import ArabicMamba
+# else:
+#     print("Not importing mamba_ssm (not in ArbMamba environment).", file=sys.stderr)
 
 from tqdm import tqdm
 import torch.optim as optim
@@ -34,7 +34,7 @@ def get_config(mode, model_type=None):
 
     # Dynamically set model save path if model_type is provided
     if model_type is not None:
-        cfg.MODEL_SAVE_PATH = f'/home/cpami-llm/CPAMI_WorkPlace/Rezwan/MSLR-2025/MSLR-Isharah/Update_MSLR-2025/outputs/models/{cfg.MODE}/{cfg.MODE}_{model_type}_best_model.pth'
+        cfg.MODEL_SAVE_PATH = f'outputs/models/{cfg.MODE}/{cfg.MODE}_{model_type}_best_model.pth'
     return cfg
 
 def save_checkpoint(state, filename):
@@ -276,6 +276,7 @@ def train(mode='SI', model_type='SignLanguageRecognizer'):
             best_accuracy = max(best_accuracy, val_accuracy)
             best_loss = min(best_loss, epoch_loss)
             model_to_save = model.module if cfg.USE_MULTI_GPU else model
+
             save_checkpoint({
                 'epoch': epoch+1,
                 'state_dict': model_to_save.state_dict(),
@@ -317,7 +318,7 @@ def train(mode='SI', model_type='SignLanguageRecognizer'):
             os.makedirs(pred_dir, exist_ok=True)
             pred_filename = f"best_pred_{mode}_{epoch+1}.txt"
             pred_path = os.path.join(pred_dir, pred_filename)
-            with open(pred_path, "w") as f:
+            with open(pred_path, "w", encoding="utf-8") as f:
                 f.write("id,gloss\n")
                 for sample_id, gloss in predictions:
                     f.write(f"{sample_id},{gloss}\n")

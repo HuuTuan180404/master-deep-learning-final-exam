@@ -8,10 +8,10 @@ from .mamba_transformer import SOTA_CSLR
 
 import os
 import sys
-if os.environ.get("CONDA_DEFAULT_ENV") == "ArbMamba":
-    from .mamba_model import ArabicMamba
-else:
-    print("Not importing mamba_ssm (not in ArbMamba environment).", file=sys.stderr)
+# if os.environ.get("CONDA_DEFAULT_ENV") == "ArbMamba":
+#     from .mamba_model import ArabicMamba
+# else:
+#     print("Not importing mamba_ssm (not in ArbMamba environment).", file=sys.stderr)
 
 from tqdm import tqdm
 import os

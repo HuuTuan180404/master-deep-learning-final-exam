@@ -1,4 +1,11 @@
 data/*
+Update_MSLR-2025/data/public_si_dat/*
+Update_MSLR-2025/data/public_us_dat/*
+Update_MSLR-2025/outputs/models/SI/*
+Update_MSLR-2025/outputs/models/US/*
+Update_MSLR-2025/outputs/predictions/US/*
+Update_MSLR-2025/outputs/predictions/SI/*
+
 work_dir/*
 ctcdecode/*
 # Byte-compiled / optimized / DLL files

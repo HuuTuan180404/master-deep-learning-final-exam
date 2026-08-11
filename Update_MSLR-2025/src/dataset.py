@@ -8,115 +8,143 @@ import random
 from torch.nn.utils.rnn import pad_sequence
 from configs import SIConfig, USConfig
 
+
 class PoseDataset(Dataset):
-    def __init__(self, pose_path, annotation_path, mode, split_type, vocab=None, augment=False):
+    def __init__(
+        self, pose_path, annotation_path, mode, split_type, vocab=None, augment=False
+    ):
         self.split_type = split_type
         self.augment = augment
-        
+
         self.mode = mode
-        if mode == 'SI':
+        if mode == "SI":
             cfg = SIConfig()
-        elif mode == 'US':
+        elif mode == "US":
             cfg = USConfig()
         else:
-            raise ValueError("Invalid mode. Choose either 'SI' or 'US'.") 
-        
+            raise ValueError("Invalid mode. Choose either 'SI' or 'US'.")
+
         self.max_frames = cfg.MAX_FRAMES
 
         # Load pose data
-        with open(pose_path, 'rb') as f:
+        with open(pose_path, "rb") as f:
             self.pose_dict = pickle.load(f)
-        self.pose_dict = {str(k): v for k, v in self.pose_dict.items()}  # Ensure keys are strings
+        self.pose_dict = {
+            str(k): v for k, v in self.pose_dict.items()
+        }  # Ensure keys are strings
 
-        if split_type == 'test' or annotation_path is None:
+        if (
+            split_type == "test" or annotation_path is None
+        ):  # nếu là tập test hoặc là không có đường dẫn annotation thì:
             # For test, use all pose_dict keys as IDs
             self.ids = list(self.pose_dict.keys())
             self.annotations = None
         else:
             # Load annotations
-            self.annotations = pd.read_csv(annotation_path, delimiter='|')
-            self.ids = [str(i) for i in self.annotations['id'] if str(i) in self.pose_dict]
+            self.annotations = pd.read_csv(annotation_path, delimiter="|")
+            self.ids = [
+                str(i) for i in self.annotations["id"] if str(i) in self.pose_dict
+            ]
 
-        print(f"Loaded {len(self.ids)} valid {split_type} samples.")
-        print(f"First 5 {split_type} IDs: {self.ids[:5]}")
-        print(f"First 5 pose_dict keys: {list(self.pose_dict.keys())[:5]}")
-        
+        # print(f"Loaded {len(self.ids)} valid {split_type} samples.")
+        # print(f"First 5 {split_type} IDs: {self.ids[:5]}")
+        # print(f"First 5 pose_dict keys: {list(self.pose_dict.keys())[:5]}")
+
         # Build vocabulary with special tokens
-        if vocab is None and split_type != 'test':
+        if (
+            vocab is None and split_type != "test"
+        ):  # nếu không có từ vựng & không phỉa là tập "test"
             self.vocab = self._build_vocab()
             # Add special tokens
-            self.vocab['<unk>'] = len(self.vocab) + 1  # Unknown token
-            self.vocab['<pad>'] = 0  # Padding token
+            self.vocab["<unk>"] = len(self.vocab) + 1  # Unknown token
+            self.vocab["<pad>"] = 0  # Padding token
         else:
             self.vocab = vocab
 
     def _build_vocab(self):
         glosses = set()
-        for gloss in self.annotations['gloss']:
+        for gloss in self.annotations["gloss"]:
             if pd.notna(gloss):  # Handle NaN values
                 glosses.update(gloss.split())
-        return {g: i+1 for i, g in enumerate(sorted(glosses))}
+        return {g: i + 1 for i, g in enumerate(sorted(glosses))}
 
     def __len__(self):
         return len(self.ids)
 
     def __getitem__(self, idx):
         sample_id = self.ids[idx]
-        pose_data = self.pose_dict[sample_id]['keypoints']
-        
-        # Process pose data
-        processed_pose = self._process_pose(pose_data)
+        pose_data = self.pose_dict[sample_id][
+            "keypoints"
+        ]  # shape: (T, 86, 2) => 171 frame, 86 joints, 2D
 
-        # Ensure we return a 3D tensor (T, J*2, 2) -> (T, J*2*2)
-        processed_pose = processed_pose.reshape(processed_pose.shape[0], -1)  # Flatten spatial dimensions
-        
+        # Process pose data
+        processed_pose = self._process_pose(pose_data)  # (MAX_LENGTH, 86, 2)
+
+        # (MAX_LENGTH, 86, 2) => (MAX_LENGTH, 86*2)
+        processed_pose = processed_pose.reshape(processed_pose.shape[0], -1)
+
         # Get gloss labels with unknown handling
-        if self.split_type != 'test':
-            gloss = self.annotations[self.annotations['id'] == sample_id]['gloss'].values[0]
+        if self.split_type != "test":  # nếu không phải tập test
+            gloss = self.annotations[self.annotations["id"] == sample_id][
+                "gloss"
+            ].values[0]
             if pd.isna(gloss):  # Handle missing glosses
                 gloss = ""
-            label = [self.vocab.get(g, self.vocab['<unk>']) for g in gloss.split()]
+            label = [self.vocab.get(g, self.vocab["<unk>"]) for g in gloss.split()]
             return sample_id, processed_pose, torch.tensor(label)
         return sample_id, processed_pose
 
     def _process_pose(self, pose):
+        """Normalize joint coordinates.
+
+        Args:
+            joints (np.ndarray): Joint coordinates with shape
+                (T, N, 2), where T is the number of frames
+                and N is the number of joints.
+
+        Returns:
+            torch.Tensor: Processed skeleton sequence with shape
+                (max_frames, N, 2) and dtype `torch.float32`.
+        """
         # Select keypoints: [right_hand, left_hand, lips, body]
-        right_hand = pose[:, 0:21, :2]
-        left_hand = pose[:, 21:42, :2]
-        lips = pose[:, 42:42+19, :2]
-        body = pose[:, 42+19:, :2]
-        
+        right_hand = pose[:, 0:21, :2]  # (T, 21, 2)
+        left_hand = pose[:, 21:42, :2]  # (T, 21, 2)
+        lips = pose[:, 42 : 42 + 19, :2]  # (T, 19, 2)
+        body = pose[:, 42 + 19 :, :2]  # (T, 25, 2)
+
         # Normalization
         def normalize(joints):
-            if np.sum(joints) == 0: return joints
+            if np.sum(joints) == 0:
+                return joints
             joints -= joints[0]
             max_val = np.max(np.abs(joints))
             return joints / max_val if max_val > 0 else joints
-        
+
+        #  normalize theo từng khung hình
         right_hand = np.array([normalize(f) for f in right_hand])
         left_hand = np.array([normalize(f) for f in left_hand])
         lips = np.array([normalize(f) for f in lips])
         body = np.array([normalize(f) for f in body])
-        
+
         # Concatenate features
         concatenated = np.concatenate(
-            [right_hand, left_hand, lips, body], 
-            axis=1
-        )
-        
+            [right_hand, left_hand, lips, body], axis=1
+        )  # (T, 86, 2)
+
         # Temporal cropping/padding
         T = concatenated.shape[0]
-        if T > self.max_frames:
-            if self.augment:
+        if self.max_frames < T:  # số frame nhiều quá
+            if self.augment:  # mỗi lần train là 1 đoạn khác nhau
                 start = np.random.randint(0, T - self.max_frames)
-            else:
+            else:  # lấy đoạn chính giữa video
                 start = (T - self.max_frames) // 2
-            concatenated = concatenated[start:start+self.max_frames]
+            concatenated = concatenated[start : start + self.max_frames]
         elif T < self.max_frames:
             pad_len = self.max_frames - T
             concatenated = np.pad(concatenated, ((0, pad_len), (0, 0), (0, 0)))
-        
+        # concatenated.shape = (MAX_LENGTH, 86, 2)
         return torch.tensor(concatenated).float()
+
 
 def collate_fn(batch):
     # If batch items have 3 elements, it's train/val mode

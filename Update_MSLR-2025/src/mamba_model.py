@@ -11,13 +11,14 @@ from speechbrain.nnet.normalization import LayerNorm
 
 import os
 import sys
-if os.environ.get("CONDA_DEFAULT_ENV") == "ArbMamba":
-    # Mamba
-    from mamba_ssm import Mamba
-    from .mamba.bimamba import Mamba as BiMamba 
-    from .mamba.mm_bimamba import Mamba as MMBiMamba 
-else:
-    print("Not importing mamba_ssm (not in ArbMamba environment).", file=sys.stderr)
+
+# if os.environ.get("CONDA_DEFAULT_ENV") == "ArbMamba":
+#     # Mamba
+#     from mamba_ssm import Mamba
+#     from .mamba.bimamba import Mamba as BiMamba 
+#     from .mamba.mm_bimamba import Mamba as MMBiMamba 
+# else:
+#     print("Not importing mamba_ssm (not in ArbMamba environment).", file=sys.stderr)
 
 # # Mamba
 # from mamba_ssm import Mamba
