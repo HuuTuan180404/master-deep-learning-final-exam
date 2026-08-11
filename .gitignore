@@ -1,5 +1,6 @@
 data/*
 Update_MSLR-2025/data/*
+!Update_MSLR-2025/data/.gitkeep
 
 # Ignore files in outputs
 Update_MSLR-2025/outputs/**/*.csv
