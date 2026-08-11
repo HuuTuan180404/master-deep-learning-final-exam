@@ -1,9 +1,11 @@
 data/*
 Update_MSLR-2025/data/*
-Update_MSLR-2025/outputs/models/SI/*
-Update_MSLR-2025/outputs/models/US/*
-Update_MSLR-2025/outputs/predictions/US/*
-Update_MSLR-2025/outputs/predictions/SI/*
+
+# Ignore files in outputs
+Update_MSLR-2025/outputs/**/*.csv
+Update_MSLR-2025/outputs/**/*.zip
+Update_MSLR-2025/outputs/**/*.pth
+Update_MSLR-2025/outputs/**/*.pkl
 
 work_dir/*
 ctcdecode/*
